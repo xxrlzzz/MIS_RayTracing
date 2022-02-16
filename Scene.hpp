@@ -2,7 +2,8 @@
 // Created by Göksu Güvendiren on 2019-05-14.
 //
 
-#pragma once
+#ifndef SCENE_H
+#define SCENE_H
 
 #include <vector>
 #include "Vector.hpp"
@@ -25,9 +26,20 @@ public:
     float RussianRoulette = 0.8;
     float RR_inv = 1.25f;
     SAMPLE sample;
+    float mis_rate = 0.2;
 
     Scene(int w, int h) : width(w), height(h),sample(LIGHT)
     {}
+
+    bool UpdateRenderConfig(SAMPLE sample_, float mis_rate_) {
+        if (sample != sample_ || mis_rate != mis_rate_) {
+            sample = sample_;
+            mis_rate = mis_rate_;
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     void Add(Object *object) { objects.push_back(object); }
     void Add(std::unique_ptr<Light> light) { lights.push_back(std::move(light)); }
@@ -35,9 +47,9 @@ public:
     [[nodiscard]] const std::vector<Object*>& get_objects() const { return objects; }
     [[nodiscard]] const std::vector<std::unique_ptr<Light> >&  get_lights() const { return lights; }
     [[nodiscard]] Intersection intersect(const Ray& ray) const;
-    BVHAccel *bvh{};
+    std::unique_ptr<BVHAccel> bvh;
     void buildBVH();
-    [[nodiscard]] Vector3f castRay(const Ray &ray, int depth) const;
+    [[nodiscard]] Vector3f castRay(const Ray &ray, int depth = 0) const;
     void sampleLight(Intersection &pos, float &pdf) const;
 
     // creating the scene (adding objects and lights)
@@ -54,3 +66,4 @@ public:
     void initLight();
 
 };
+#endif // SCENE_H

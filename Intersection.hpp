@@ -25,7 +25,7 @@ struct Intersection
     Vector3f normal;
     Vector3f emit;
     double distance;
-    Object* obj;
-    Material* m;
+    const Object* obj;
+    const Material* m;
 };
 #endif //RAYTRACING_INTERSECTION_H

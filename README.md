@@ -136,3 +136,5 @@ shadeOnBRDF: ray
 
 BRDF: pdf() / obj.area()
 Light: $\frac{1}{solidangle}$
+
+more about [mis](https://graphics.stanford.edu/courses/cs348b-03/papers/veach-chapter9.pdf)

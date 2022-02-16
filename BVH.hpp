@@ -9,6 +9,7 @@
 #include <vector>
 #include <memory>
 #include <ctime>
+
 #include "Object.hpp"
 #include "Ray.hpp"
 #include "Bounds3.hpp"
@@ -35,10 +36,10 @@ public:
     [[nodiscard]] Intersection Intersect(const Ray &ray) const;
     Intersection getIntersection(BVHBuildNode* node, const Ray& ray)const;
     bool IntersectP(const Ray &ray) const;
-    BVHBuildNode* root;
+    std::unique_ptr<BVHBuildNode> root;
 
     // BVHAccel Private Methods
-    BVHBuildNode* recursiveBuild(std::vector<Object*>objects);
+    std::unique_ptr<BVHBuildNode> recursiveBuild(std::vector<Object*>objects);
 
     // BVHAccel Private Data
     const int maxPrimsInNode;
@@ -51,9 +52,9 @@ public:
 
 struct BVHBuildNode {
     Bounds3 bounds;
-    BVHBuildNode *left;
-    BVHBuildNode *right;
-    Object* object;
+    std::unique_ptr<BVHBuildNode> left = nullptr;
+    std::unique_ptr<BVHBuildNode> right = nullptr;
+    Object* object = nullptr;
     float area{};
 
 public:

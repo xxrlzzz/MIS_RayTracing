@@ -5,13 +5,13 @@
 #include "Scene.hpp"
 
 #include <memory>
-#include "Sphere.hpp"
-#include "math.h"
+#include <cmath>
 
+#include "Sphere.hpp"
 
 void Scene::buildBVH() {
-    printf(" - Generating BVH...\n\n");
-    this->bvh = new BVHAccel(objects, 1, BVHAccel::SplitMethod::NAIVE);
+    std::cout << " - Generating BVH...\n\n";
+    this->bvh.reset(new BVHAccel(objects, 1, BVHAccel::SplitMethod::NAIVE));
 }
 
 Intersection Scene::intersect(const Ray &ray) const
@@ -23,7 +23,7 @@ void Scene::initLight(){
     for(auto *object: objects){
         if(object->hasEmit()){
             auto* sphere = dynamic_cast<Sphere*>(object);
-            Add(std::make_unique<Light>(sphere->center,sphere->m->getEmission()));
+            Add(std::make_unique<Light>(sphere->getCenter(),sphere->getEmission()));
         }
     }
 }
@@ -73,10 +73,10 @@ float misWeight(float pdfA,float pdfB) {
 // only support sphere light
 float sphericalLightSamplingPdf(const Vector3f x,const Sphere* sphere){
     float solidangle = NAN ;
-    Vector3f w = sphere->center - x;
+    Vector3f w = sphere->getCenter() - x;
     float dc_2 = dotProduct(w,w);
-    if(dc_2 > sphere->radius2){
-        float sin_theta_max_2 = clamp(sphere->radius2/dc_2,0.0,1.0);
+    if(dc_2 > sphere->getRadius2()){
+        float sin_theta_max_2 = clamp(sphere->getRadius2()/dc_2,0.0,1.0);
         float cos_theta_max = sqrtf(1.0f - sin_theta_max_2);
         solidangle = M_PI*2 * (1.0 - cos_theta_max);
     }else{
@@ -121,7 +121,7 @@ Vector3f Scene::shadeBRDF(const Ray& ray,int depth,bool useMis = false)const{
     Vector3f p = intersection.coords;
     Vector3f wo = -ray.direction;
     Vector3f N = intersection.normal;
-    Material* m = intersection.m;
+    const Material* m = intersection.m;
 
     // 撞到光源
     if (m->hasEmission() && depth == 0) {
@@ -150,25 +150,28 @@ Vector3f Scene::shadeBRDF(const Ray& ray,int depth,bool useMis = false)const{
     }
 
     Intersection hit = intersect(Ray(p + wi * 0.01f, wi));
-    Material *hitm = hit.m;
+    const Material *hitm = hit.m;
     // 击中光源
-    if (hit.happened && hitm->hasEmission()) {
-        if (useMis) {
-            // 必须是球光源
-            float lightPdf = sphericalLightSamplingPdf(hit.coords, dynamic_cast<Sphere *>(hit.obj));
-            weight = misWeight(pdf, lightPdf);
+    if (hit.happened) {
+        if (hitm->hasEmission()) {
+            if (useMis) {
+                // 必须是球光源
+                float lightPdf = sphericalLightSamplingPdf(hit.coords, dynamic_cast<const Sphere *>(hit.obj));
+                weight = misWeight(pdf, lightPdf);
+            }
+            Lo = hitm->getEmission();
+        } else {
+            // 射出下一条光线
+            if (useMis)
+                weight = misWeight(pdf, (1.0 / (2 * M_PI)));
+            // a little offset on start point to avoid hit p again
+            Lo = shadeBRDF(Ray(p + wi * 0.01f, wi), depth + 1, useMis);
         }
-        Lo = hitm->getEmission();
-    } else if (hit.happened) {
-        // 射出下一条光线
-        if (useMis)
-            weight = misWeight(pdf, (1.0 / (2 * M_PI)));
-        // a little offset on start point to avoid hit p again
-        Lo = shadeBRDF(Ray(p + wi * 0.01f, wi), depth + 1, useMis);
+        Lo = Lo * fr * cos_a * RR_inv * (1.0f / pdf);
+        return Lo * weight;
+    } else {
+        return Lo;
     }
-    Lo = Lo * fr * cos_a * RR_inv * (1.0f / pdf);
-
-    return Lo * weight;
 }
 /**
  * sample to the light
@@ -186,7 +189,7 @@ Vector3f Scene::shadeLight(const Ray& ray,int depth,bool useMis = false) const {
     Vector3f p = intersection.coords;
     Vector3f N = intersection.normal;
     Vector3f wo = -ray.direction;
-    Material *m = intersection.m;
+    const Material *m = intersection.m;
     if (m->hasEmission() && depth == 0) {
         // 撞到光源
         return m->getEmission();
@@ -220,7 +223,7 @@ Vector3f Scene::shadeLight(const Ray& ray,int depth,bool useMis = false) const {
     if (get_random_float() <= RussianRoulette) {
         Vector3f wi = (m->sample(wo, N)).normalized();
         Intersection hit = intersect(Ray(p + wi * 0.01f, wi));
-        Material *hitMaterial = hit.m;
+        const Material *hitMaterial = hit.m;
         float cos_a = dotProduct(wi, N);
         float pdf = m->pdf(wo, wi, N);
         Vector3f fr = m->eval(wo, wi, N);
@@ -237,8 +240,9 @@ Vector3f Scene::castRay(const Ray &ray, int depth) const {
     if (sample == MIS) {
         Vector3f brdf = shadeBRDF(ray, depth, true);
         Vector3f light = shadeLight(ray, depth, true);
-        float p = brdf.norm() > light.norm() ? 0.2 : 0.8;
-        return lerp(brdf, light, p);
+        // float p = brdf.norm() > light.norm() ? 0.2 : 0.8;
+        // return lerp(brdf, light, p);
+        return lerp(brdf, light, mis_rate);
     } else if (sample == LIGHT) {
         return shadeLight(ray, depth);
     } else {

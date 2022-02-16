@@ -1,7 +1,6 @@
 //
 // Created by LEI XU on 5/13/19.
 //
-#pragma once
 #ifndef RAYTRACING_OBJECT_H
 #define RAYTRACING_OBJECT_H
 
@@ -16,11 +15,11 @@ class Object
 public:
     Object() = default;
     virtual ~Object() = default;
-    virtual Intersection getIntersection(Ray _ray) = 0;
-    virtual Bounds3 getBounds()=0;
-    virtual float getArea()=0;
-    virtual void Sample(Intersection &pos, float &pdf)=0;
-    virtual bool hasEmit()=0;
+    virtual Intersection getIntersection(Ray _ray) const = 0;
+    virtual Bounds3 getBounds() const=0;
+    virtual float getArea() const=0;
+    virtual void Sample(Intersection &pos, float &pdf) const=0;
+    virtual bool hasEmit() const =0;
 };
 
 

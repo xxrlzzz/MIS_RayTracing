@@ -1,31 +1,22 @@
 #include "BVH.hpp"
+
 #include <algorithm>
 #include <cassert>
+
+#include "Profiler.h"
 
 BVHAccel::BVHAccel(std::vector<Object *> p, int maxPrimsInNode,
                    SplitMethod splitMethod)
     : maxPrimsInNode(std::min(255, maxPrimsInNode)), splitMethod(splitMethod),
       primitives(std::move(p)) {
-  time_t start = 0, stop = 0;
-  time(&start);
   if (primitives.empty())
     return;
-
+  RAIIProfiler profiler;
   root = recursiveBuild(primitives);
-
-  time(&stop);
-  double diff = difftime(stop, start);
-  int hrs = (int)diff / 3600;
-  int mins = ((int)diff / 60) - (hrs * 60);
-  int secs = (int)diff - (hrs * 3600) - (mins * 60);
-
-  printf(
-      "\rBVH Generation complete: \nTime Taken: %i hrs, %i mins, %i secs\n\n",
-      hrs, mins, secs);
 }
 
-BVHBuildNode *BVHAccel::recursiveBuild(std::vector<Object *> objects) {
-  auto *node = new BVHBuildNode();
+std::unique_ptr<BVHBuildNode> BVHAccel::recursiveBuild(std::vector<Object *> objects) {
+  auto node = std::make_unique<BVHBuildNode>();
 
   // Compute bounds of all primitives in BVH node
   Bounds3 bounds;
@@ -35,8 +26,6 @@ BVHBuildNode *BVHAccel::recursiveBuild(std::vector<Object *> objects) {
     // Create leaf _BVHBuildNode_
     node->bounds = objects[0]->getBounds();
     node->object = objects[0];
-    node->left = nullptr;
-    node->right = nullptr;
     node->area = objects[0]->getArea();
     return node;
   } else if (objects.size() == 2) {
@@ -94,7 +83,7 @@ Intersection BVHAccel::Intersect(const Ray &ray) const {
   Intersection isect;
   if (!root)
     return isect;
-  isect = BVHAccel::getIntersection(root, ray);
+  isect = BVHAccel::getIntersection(root.get(), ray);
   return isect;
 }
 
@@ -111,8 +100,8 @@ Intersection BVHAccel::getIntersection(BVHBuildNode *node,
     return Intersection();
   }
   if (node->left != nullptr && node->right != nullptr) {
-    Intersection interL = getIntersection(node->left, ray);
-    Intersection interR = getIntersection(node->right, ray);
+    Intersection interL = getIntersection(node->left.get(), ray);
+    Intersection interR = getIntersection(node->right.get(), ray);
     if (interL.happened && interR.happened) {
       return interL.distance < interR.distance ? interL : interR;
     } else if (interL.happened) {
@@ -132,13 +121,13 @@ void BVHAccel::getSample(BVHBuildNode *node, float p, Intersection &pos,
     return;
   }
   if (p < node->left->area)
-    getSample(node->left, p, pos, pdf);
+    getSample(node->left.get(), p, pos, pdf);
   else
-    getSample(node->right, p - node->left->area, pos, pdf);
+    getSample(node->right.get(), p - node->left->area, pos, pdf);
 }
 
 void BVHAccel::Sample(Intersection &pos, float &pdf) {
   float p = std::sqrt(get_random_float()) * root->area;
-  getSample(root, p, pos, pdf);
+  getSample(root.get(), p, pos, pdf);
   pdf /= root->area;
 }
