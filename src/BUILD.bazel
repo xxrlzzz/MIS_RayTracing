@@ -1,0 +1,47 @@
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+  name = "lib",
+  srcs = [
+    "BVH.cpp",
+    "Material.cpp",
+    "Renderer.cpp",
+    "Scene.cpp",
+    "Vector.cpp",
+    "VirtualScreen.cpp",
+  ],
+    
+  hdrs = [
+    "Bounds3.hpp",
+    "BVH.hpp",
+    "global.hpp",
+    "Intersection.hpp",
+    "Material.hpp",
+    "OBJ_Loader.hpp",
+    "Object.hpp",
+    "Profiler.h",
+    "Ray.hpp",
+    "Renderer.hpp",
+    "Scene.hpp",
+    "Triangle.hpp",
+    "Vector.hpp",
+    "VirtualScreen.hpp",
+  ],
+
+  deps = [
+    "@sfml-dylib//:dylib",
+    "@sfml-header//:lib",
+  ],
+)
+
+cc_binary(
+  name = "RayTracing",
+  srcs = [
+    "main.cpp",
+  ],
+
+  deps = [
+    ":lib",
+  ],
+)

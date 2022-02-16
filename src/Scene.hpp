@@ -26,7 +26,7 @@ public:
     float RussianRoulette = 0.8;
     float RR_inv = 1.25f;
     SAMPLE sample;
-    float mis_rate = 0.2;
+    float mis_rate = 0.5f;
 
     Scene(int w, int h) : width(w), height(h),sample(LIGHT)
     {}
@@ -57,9 +57,9 @@ public:
     std::vector<std::unique_ptr<Light> > lights;
 
 
-    [[nodiscard]] Vector3f shadeBRDF(const Ray &ray, int depth, bool useMis) const;
+    [[nodiscard]] Vector3f shadeBRDF(const Ray &ray, int depth, bool useMis = false) const;
 
-    [[nodiscard]] Vector3f shadeLight(const Ray &ray, int depth, bool useMis) const;
+    [[nodiscard]] Vector3f shadeLight(const Ray &ray, int depth, bool useMis = false) const;
 
     [[nodiscard]] float lightChoosingPdf(Vector3f x,int light)const;
 

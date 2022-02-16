@@ -1,4 +1,6 @@
 ./cmake-build-debug/
+# Ignore all bazel-* symlinks.
+/bazel-*
 
 .DS_Store
 .idea/

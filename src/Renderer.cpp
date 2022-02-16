@@ -14,7 +14,7 @@
 
 inline float deg2rad(const float &deg) { return deg * M_PI / 180.0f; }
 
-constexpr int kSPP = 64;
+constexpr int kSPP = 128;
 constexpr int kBatchSize = 4;
 
 const float EPSILON = 0.00001;

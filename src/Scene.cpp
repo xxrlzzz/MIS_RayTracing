@@ -109,7 +109,7 @@ float Scene::lightChoosingPdf(Vector3f x,int light)const {
  * @param useMis    是否是MIS
  * @return
  */
-Vector3f Scene::shadeBRDF(const Ray& ray,int depth,bool useMis = false)const{
+Vector3f Scene::shadeBRDF(const Ray& ray,int depth,bool useMis)const{
     Intersection intersection = intersect(ray);
     if(!intersection.happened)
         // 没有命中
@@ -157,6 +157,7 @@ Vector3f Scene::shadeBRDF(const Ray& ray,int depth,bool useMis = false)const{
             if (useMis) {
                 // 必须是球光源
                 float lightPdf = sphericalLightSamplingPdf(hit.coords, dynamic_cast<const Sphere *>(hit.obj));
+                std::cout << pdf << " " << lightPdf;
                 weight = misWeight(pdf, lightPdf);
             }
             Lo = hitm->getEmission();
@@ -180,7 +181,7 @@ Vector3f Scene::shadeBRDF(const Ray& ray,int depth,bool useMis = false)const{
  * @param useMis
  * @return
  */
-Vector3f Scene::shadeLight(const Ray& ray,int depth,bool useMis = false) const {
+Vector3f Scene::shadeLight(const Ray& ray,int depth,bool useMis) const {
     Intersection intersection = intersect(ray);
     float weight = 1.0f;
     if (!intersection.happened)
@@ -212,8 +213,8 @@ Vector3f Scene::shadeLight(const Ray& ray,int depth,bool useMis = false) const {
             redundant *= redundant;
             redundant *= pdf;
 
-            float brdfPdf = m->pdf(wo, ws, N) / hit.obj->getArea();
             if (useMis) {
+                float brdfPdf = m->pdf(wo, ws, N) / hit.obj->getArea();
                 weight = misWeight(pdf, brdfPdf);
             }
             L_dir = L_dir * (1.0f / redundant) * weight;
