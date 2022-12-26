@@ -19,7 +19,7 @@ bool rayTriangleIntersect(const Vector3f &v0, const Vector3f &v1,
     Vector3f edge2 = v2 - v0;
     Vector3f pvec = crossProduct(dir, edge2);
     float det = dotProduct(edge1, pvec);
-    if (det == 0 || det < 0)
+    if (det <= 0)
         return false;
 
     Vector3f tvec = orig - v0;
@@ -66,6 +66,7 @@ class Triangle : public Object {
         float x = std::sqrt(get_random_float()), y = get_random_float();
         pos.coords = v0 * (1.0f - x) + v1 * (x * (1.0f - y)) + v2 * (x * y);
         pos.normal = this->normal;
+        pos.emit = m->getEmission();
         pdf = 1.0f / area;
     }
     float getArea() const override { return area; }

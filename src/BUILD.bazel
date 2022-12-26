@@ -10,6 +10,7 @@ cc_library(
     "Scene.cpp",
     "Vector.cpp",
     "VirtualScreen.cpp",
+    "global.cpp"
   ],
     
   hdrs = [

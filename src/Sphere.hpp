@@ -9,7 +9,6 @@
 #include "Material.hpp"
 #include "Object.hpp"
 #include "Vector.hpp"
-
 class Sphere : public Object {
   private:
     Vector3f center;

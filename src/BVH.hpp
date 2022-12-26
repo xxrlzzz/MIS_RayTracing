@@ -9,6 +9,8 @@
 #include <vector>
 #include <memory>
 #include <ctime>
+#include <mutex>
+#include <unordered_map>
 
 #include "Object.hpp"
 #include "Ray.hpp"
@@ -30,6 +32,7 @@ public:
 
     // BVHAccel Public Methods
     explicit BVHAccel(std::vector<Object*> p, int maxPrimsInNode = 1, SplitMethod splitMethod = SplitMethod::NAIVE);
+    explicit BVHAccel(const std::vector<std::unique_ptr<Object>>& p, int maxPrimsInNode = 1, SplitMethod splitMethod = SplitMethod::NAIVE);
     [[nodiscard]] Bounds3 WorldBound() const;
     ~BVHAccel() = default;
 
@@ -39,7 +42,7 @@ public:
     std::unique_ptr<BVHBuildNode> root;
 
     // BVHAccel Private Methods
-    std::unique_ptr<BVHBuildNode> recursiveBuild(std::vector<Object*>objects);
+    std::unique_ptr<BVHBuildNode> recursiveBuild(std::vector<Object *>objects);
 
     // BVHAccel Private Data
     const int maxPrimsInNode;

@@ -20,23 +20,18 @@ Intersection Scene::intersect(const Ray &ray) const
 }
 
 void Scene::initLight(){
-    for(auto *object: objects){
-        if(object->hasEmit()){
-            auto* sphere = dynamic_cast<Sphere*>(object);
-            Add(std::make_unique<Light>(sphere->getCenter(),sphere->getEmission()));
-        }
-    }
+    // for(auto&& object: objects){
+    //     if(object->hasEmit()){
+    //         Sphere* sphere = reinterpret_cast<Sphere*>(object.get());
+    //         std::cout << object.get() << '\t' << sphere<< std::endl;
+    //         Add(std::make_unique<Light>(sphere->getCenter(),sphere->getEmission()));
+    //     }
+    // }
 }
 void Scene::sampleLight(Intersection &pos, float &pdf) const
 {
-    float emit_area_sum = 0;
-    for(const auto & object:objects){
-        if(object->hasEmit()){
-            emit_area_sum += object->getArea();
-        }
-    }
-    float p = get_random_float() * emit_area_sum;
-    emit_area_sum = 0;
+    float p = get_random_float() * emit_area_sum_cache;
+    float emit_area_sum = 0.f;
     for(const auto & object:objects){
         if(!object->hasEmit())
             continue;
@@ -46,6 +41,12 @@ void Scene::sampleLight(Intersection &pos, float &pdf) const
             break;
         }
     }
+}
+
+void Scene::Add(std::unique_ptr<Object>object) { 
+    if(object->hasEmit())
+        emit_area_sum_cache += object->getArea();
+    objects.push_back(std::move(object)); 
 }
 
 /**
@@ -103,34 +104,29 @@ float Scene::lightChoosingPdf(Vector3f x,int light)const {
 }
 
 /**
+ * TODO: Why this function is brighter than shadeLight?
  * sample to BRDF
  * @param ray       光线
  * @param depth     递归的深度
  * @param useMis    是否是MIS
  * @return
  */
-Vector3f Scene::shadeBRDF(const Ray& ray,int depth,bool useMis)const{
-    Intersection intersection = intersect(ray);
-    if(!intersection.happened)
-        // 没有命中
+Vector3f Scene::shadeBRDF(const Ray& ray,Intersection hit_result, int depth,bool useMis)const{
+    if (depth > max_depth)
         return backgroundColor;
 
+    assert(hit_result.happened);
     Vector3f Lo;
     float weight = 1.0f;
     // 获得交点信息
-    Vector3f p = intersection.coords;
+    Vector3f p = hit_result.coords;
+    Vector3f N = hit_result.normal;
     Vector3f wo = -ray.direction;
-    Vector3f N = intersection.normal;
-    const Material* m = intersection.m;
-
-    // 撞到光源
-    if (m->hasEmission() && depth == 0) {
-        return m->getEmission();
-    }
+    const Material* m = hit_result.m;
 
     // RR test
     if (get_random_float() > RussianRoulette) {
-        return backgroundColor;
+        return Lo;
     }
 
     // correct normal
@@ -142,22 +138,21 @@ Vector3f Scene::shadeBRDF(const Ray& ray,int depth,bool useMis)const{
     Vector3f wi = (m->sample(wo,N)).normalized();
     float cos_a = dotProduct(wi,N);
     float pdf = m->pdf(wo,wi,N);
-    Vector3f fr = m->eval(wo,wi,N);
 
     //  value of pdf and cos_a should be meaningful
     if (pdf < EPSILON || cos_a < 0.0f) {
-        return backgroundColor;
+        return Lo;
     }
-
-    Intersection hit = intersect(Ray(p + wi * 0.01f, wi));
+    // a little offset on start point to avoid hit p again
+    Ray next_ray(p + wi * 0.01f, wi);
+    Intersection hit = intersect(next_ray);
     const Material *hitm = hit.m;
-    // 击中光源
     if (hit.happened) {
+        // 击中光源
         if (hitm->hasEmission()) {
             if (useMis) {
                 // 必须是球光源
                 float lightPdf = sphericalLightSamplingPdf(hit.coords, dynamic_cast<const Sphere *>(hit.obj));
-                std::cout << pdf << " " << lightPdf;
                 weight = misWeight(pdf, lightPdf);
             }
             Lo = hitm->getEmission();
@@ -165,12 +160,13 @@ Vector3f Scene::shadeBRDF(const Ray& ray,int depth,bool useMis)const{
             // 射出下一条光线
             if (useMis)
                 weight = misWeight(pdf, (1.0 / (2 * M_PI)));
-            // a little offset on start point to avoid hit p again
-            Lo = shadeBRDF(Ray(p + wi * 0.01f, wi), depth + 1, useMis);
+            Lo = shadeBRDF(next_ray, hit, depth + 1, useMis);
         }
+        Vector3f fr = m->eval(wo,wi,N);
         Lo = Lo * fr * cos_a * RR_inv * (1.0f / pdf);
         return Lo * weight;
     } else {
+        // Not hit light, return empty color.
         return Lo;
     }
 }
@@ -181,34 +177,31 @@ Vector3f Scene::shadeBRDF(const Ray& ray,int depth,bool useMis)const{
  * @param useMis
  * @return
  */
-Vector3f Scene::shadeLight(const Ray& ray,int depth,bool useMis) const {
-    Intersection intersection = intersect(ray);
-    float weight = 1.0f;
-    if (!intersection.happened)
+Vector3f Scene::shadeLight(const Ray& ray,Intersection hit_result, int depth,bool useMis) const {
+    if (depth > max_depth)
         return backgroundColor;
-
-    Vector3f p = intersection.coords;
-    Vector3f N = intersection.normal;
+    assert(hit_result.happened);
+    float weight = 1.0f;
+    Vector3f p = hit_result.coords;
+    Vector3f N = hit_result.normal;
     Vector3f wo = -ray.direction;
-    const Material *m = intersection.m;
-    if (m->hasEmission() && depth == 0) {
-        // 撞到光源
-        return m->getEmission();
-    }
+    const Material *m = hit_result.m;
+
     Vector3f L_dir, L_indir;
     {
         // 直接光照
-        float pdf = 0;
-        Intersection sampleInterSection;
-        sampleLight(sampleInterSection, pdf);
-        Vector3f x = sampleInterSection.coords;
+        // L_dir = L_i * f_r * cos θ * cos θ’ / |x’ - p|^2 / pdf_light 
+        float pdf = 0.0f;   // the inital value is not important
+        Intersection lightSample;
+        sampleLight(lightSample, pdf);
+        Vector3f x = lightSample.coords;
         Vector3f ws = (x - p).normalized();
         Intersection hit = intersect(Ray(p + ws * 0.01f, ws));
         float cos_a = dotProduct(ws, N);
         // 中间没有阻挡
         if (hit.coords == x && cos_a > 0.0f && pdf > EPSILON) {
-            Vector3f NN = sampleInterSection.normal;
-            L_dir = sampleInterSection.emit * m->eval(wo, ws, N) * cos_a * dotProduct(-ws, NN);
+            Vector3f NN = lightSample.normal;
+            L_dir = lightSample.emit * m->eval(wo, ws, N) * cos_a * dotProduct(-ws, NN);
             float redundant = (x - p).norm();
             redundant *= redundant;
             redundant *= pdf;
@@ -223,13 +216,14 @@ Vector3f Scene::shadeLight(const Ray& ray,int depth,bool useMis) const {
     // 间接光照
     if (get_random_float() <= RussianRoulette) {
         Vector3f wi = (m->sample(wo, N)).normalized();
-        Intersection hit = intersect(Ray(p + wi * 0.01f, wi));
+        Ray next_ray = Ray(p + wi * 0.01f, wi);
+        Intersection hit = intersect(next_ray);
         const Material *hitMaterial = hit.m;
         float cos_a = dotProduct(wi, N);
         float pdf = m->pdf(wo, wi, N);
         Vector3f fr = m->eval(wo, wi, N);
         if (hitMaterial != nullptr && !hitMaterial->hasEmission() && cos_a > 0.0f && pdf > EPSILON) {
-            L_indir = shadeLight(Ray(p + wi * 0.01f, wi), depth + 1, useMis) * fr *
+            L_indir = shadeLight(next_ray ,hit, depth + 1, useMis) * fr *
                       cos_a * (1.0f / pdf) * RR_inv * weight;
         }
     }
@@ -237,16 +231,28 @@ Vector3f Scene::shadeLight(const Ray& ray,int depth,bool useMis) const {
 }
 
 // Implementation of Path Tracing
-Vector3f Scene::castRay(const Ray &ray, int depth) const {
+Vector3f Scene::castRay(const Ray &ray) const {
+    Intersection intersection = intersect(ray);
+    if(!intersection.happened)
+        // 没有命中
+        return backgroundColor;
+
+    const Material* m = intersection.m;
+
+    // 撞到光源
+    if (m->hasEmission()) {
+        return m->getEmission();
+    }
     if (sample == MIS) {
-        Vector3f brdf = shadeBRDF(ray, depth, true);
-        Vector3f light = shadeLight(ray, depth, true);
+        Vector3f brdf = shadeBRDF(ray, intersection, 0, true);
+        Vector3f light = shadeLight(ray, intersection,0, true);
         // float p = brdf.norm() > light.norm() ? 0.2 : 0.8;
         // return lerp(brdf, light, p);
-        return lerp(brdf, light, mis_rate);
+        // return lerp(brdf, light, mis_rate);
+        return brdf + light;
     } else if (sample == LIGHT) {
-        return shadeLight(ray, depth);
+        return shadeLight(ray, intersection,0);
     } else {
-        return shadeBRDF(ray, depth);
+        return shadeBRDF(ray, intersection, 0);
     }
 }

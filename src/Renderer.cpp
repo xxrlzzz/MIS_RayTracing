@@ -15,9 +15,9 @@
 inline float deg2rad(const float &deg) { return deg * M_PI / 180.0f; }
 
 constexpr int kSPP = 128;
-constexpr int kBatchSize = 4;
+constexpr int kBatchSize = 8;
 
-const float EPSILON = 0.00001;
+constexpr float EPSILON = 0.00001;
 // const float EPSILON = 0.0001;
 
 // save framebuffer to file
@@ -125,7 +125,6 @@ void Renderer::WindowMain(const std::string &file, size_t width,
                     break;
                 case sf::Keyboard::S:
                     next_save = !next_save;
-                    std::cout << "next save: " << next_save << std::endl;
                     break;
                 default:
                     break;
@@ -134,20 +133,24 @@ void Renderer::WindowMain(const std::string &file, size_t width,
         }
 
         if (next_save) {
+            std::cout << "file save to : " << file << std::endl;
+
             saveFramebuffer(file, width, height, m_framebuffer_copy);
             next_save = false;
         }
+        std::vector<sf::Color> colors;
+        colors.resize(m_framebuffer_copy.size());
         size_t m = 0;
         for (uint32_t i = 0; i < width; ++i) {
             for (uint32_t j = 0; j < height; ++j) {
                 const Vector3f color =
                     Vector3f::Min(m_framebuffer_copy[m], Vector3f{1, 1, 1});
-                m_screen.setPixel(j, i,
-                                  sf::Color(color.x * 255, color.y * 255,
-                                            color.z * 255, 0xFF));
+                colors[j * width + i] = sf::Color(255 * color.x, 255 * color.y,
+                                        255 * color.z);
                 m += 1;
             }
         }
+        m_screen.fillPixel(colors);
         m_window.draw(m_screen);
         m_window.display();
 
@@ -166,13 +169,6 @@ void Renderer::Render(Scene &scene, const std::string &file) {
     const size_t framebufferSize = scene.width * scene.height;
     m_framebuffer.resize(framebufferSize);
     m_framebuffer_copy.resize(framebufferSize);
-    size_t m = 0;
-    for (uint32_t i = 0; i < scene.width; ++i) {
-        for (uint32_t j = 0; j < scene.height; ++j) {
-            m_screen.setPixel(j, i, sf::Color::White);
-            m += 1;
-        }
-    }
     next_rate = scene.mis_rate;
     next_sample = scene.sample;
 

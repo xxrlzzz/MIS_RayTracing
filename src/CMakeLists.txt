@@ -1,7 +1,7 @@
 
 add_executable(RayTracing main.cpp Object.hpp Vector.cpp Vector.hpp Sphere.hpp global.hpp Triangle.hpp Scene.cpp
     Scene.hpp Light.hpp BVH.cpp BVH.hpp Bounds3.hpp Ray.hpp Material.hpp Material.cpp Intersection.hpp VirtualScreen.cpp VirtualScreen.hpp
-    Renderer.cpp Renderer.hpp Profiler.h)
+    Renderer.cpp Renderer.hpp Profiler.h global.cpp)
 
 
 if(SFML_OS_WINDOWS AND SFML_COMPILER_MSVC)

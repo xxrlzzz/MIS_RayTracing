@@ -83,12 +83,10 @@ public:
   }
 
   [[nodiscard]] inline bool
-  IntersectP(const Ray &ray, const Vector3f &invDir,
-             const std::array<int, 3> &dirisNeg) const;
+  IntersectP(const Ray &ray, const Vector3f &invDir) const;
 };
 
-inline bool Bounds3::IntersectP(const Ray &ray, const Vector3f &invDir,
-                                const std::array<int, 3> &dirIsNeg) const {
+inline bool Bounds3::IntersectP(const Ray &ray, const Vector3f &invDir) const {
   // invDir: ray direction(x,y,z), invDir=(1.0/x,1.0/y,1.0/z), use this because
   // Multiply is faster that Division dirIsNeg: ray direction(x,y,z),
   // dirIsNeg=[int(x>0),int(y>0),int(z>0)], use this to simplify your logic
@@ -103,11 +101,10 @@ inline bool Bounds3::IntersectP(const Ray &ray, const Vector3f &invDir,
   if (tymin > tymax)
     std::swap(tymin, tymax);
 
-  if ((txmin > tymax) || (tymin > txmax))
-    return false;
-
   txmin = std::max(txmin, tymin);
   txmax = std::min(txmax, tymax);
+  if (txmin > txmax)
+    return false;
 
   float tzmin = (pMin.z - ray.origin.z) * invDir.z;
   float tzmax = (pMax.z - ray.origin.z) * invDir.z;
@@ -115,10 +112,9 @@ inline bool Bounds3::IntersectP(const Ray &ray, const Vector3f &invDir,
   if (tzmin > tzmax)
     std::swap(tzmin, tzmax);
 
-  if ((txmin > tzmax) || (tzmin > txmax))
-    return false;
-
-  return std::min(txmax, tzmax) >= 0;
+  txmin = std::max(std::max(txmin, tzmin), 0.f);
+  txmax = std::min(txmax, tzmax);
+  return txmax >= txmin;
 }
 
 inline Bounds3 Union(const Bounds3 &b1, const Bounds3 &b2) {

@@ -8,7 +8,5 @@ if (!$ENV{CMAKE_BUILD_TYPE})
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-
-
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/;${CMAKE_MODULE_PATH};${CMAKE_SOURCE_DIR}")
 add_subdirectory(src)

@@ -20,9 +20,33 @@ struct Ray{
 
     Vector3f operator()(double t) const{return origin+direction*t;}
 
+    bool operator == (const Ray& r) const{
+        return origin == r.origin && direction == r.direction;
+    }
+
     friend std::ostream &operator<<(std::ostream& os, const Ray& r){
         os<<"[origin:="<<r.origin<<", direction="<<r.direction<<", time="<< r.t<<"]\n";
         return os;
+    }
+};
+struct Vector3fHasher {
+    std::size_t operator()(const Vector3f& k) const {
+        using std::size_t;
+        using std::hash;
+        using std::string;
+
+        // Compute individual hash values for first,
+        // second and third and combine them using XOR
+        // and bit shifting:
+
+        return ((hash<float>()(k.x)
+                 ^ (hash<float>()(k.y) << 1)) >> 1)
+                 ^ (hash<float>()(k.z) << 1);
+    }
+};
+struct RayHasher {
+    size_t operator()(const Ray& r) const {
+        return Vector3fHasher()(r.origin) ^ Vector3fHasher()(r.direction);
     }
 };
 #endif //RAYTRACING_RAY_H

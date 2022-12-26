@@ -1,9 +1,12 @@
-#pragma once
+
+#ifndef GLOBAL_H
+#define GLOBAL_H
+
 #include <iostream>
 #include <cmath>
 #include <random>
 
-extern const float  EPSILON;
+extern const float EPSILON;
 const float kInfinity = std::numeric_limits<float>::max();
 
 inline float clamp(const float &lo, const float &hi, const float &v)
@@ -24,15 +27,7 @@ inline  bool solveQuadratic(const float &a, const float &b, const float &c, floa
     return true;
 }
 
-inline float get_random_float()
-{
-
-    static std::random_device dev;
-    static std::mt19937 rng(dev());
-    static std::uniform_real_distribution<float> dist(0.f, 1.f); // distribution in range [0, 1]
-
-    return dist(rng);
-}
+extern float get_random_float();
 
 inline void UpdateProgress(float progress)
 {
@@ -48,3 +43,5 @@ inline void UpdateProgress(float progress)
     std::cout << "] " << int(progress * 100.0) << " %\r";
     std::cout.flush();
 };
+
+#endif // GLOBAL_H
